@@ -1,0 +1,23 @@
+<VerticalLayout width="195" height="195" position="0 0 -65">
+  <HorizontalLayout height="65">
+    <panel></panel>
+    <button id="play1" onClick="up" text="U"></button>
+    <button id="play5" onClick="attack" text="Atk"></button>
+  </HorizontalLayout>
+  <HorizontalLayout height="65">
+  <button></button>
+    <button id="play2" onClick="left" text="L"></button>
+    <button id="play3" onClick="right" text="R"></button>
+    <button></button>
+  </HorizontalLayout>
+  <HorizontalLayout height="65">
+    <panel></panel>
+    <button id="play4" onClick="down" text="D"></button>
+    <panel></panel>
+  </HorizontalLayout>
+</VerticalLayout>
+
+<VerticalLayout width="195" height="195" position="-250 0 -100">
+  <button id="play5" onClick="spawn" text="Spawn grid"></button>
+  <button id="play6" onClick="spawn_player" text="Spawn players"></button>
+</VerticalLayout>
