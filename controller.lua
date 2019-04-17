@@ -6,13 +6,16 @@
 ---------------------------
 ------ CONFIGURATION / INIT
 ---------------------------
-grid_height = 3
+grid_height = 3 -- Grid size
 grid_width = 6
 
-red_spawn_x = 2
+red_spawn_x = 2 -- Where the players spawn
 red_spawn_y = 2
 blue_spawn_x = 5
 blue_spawn_y = 2
+
+blue_area = 4 -- Controls how far players can move - should not overlap (but can!) Used for area-grabbing.
+red_area = 3
 
 delay = 0.15 -- delay between button presses
 
@@ -204,10 +207,10 @@ function objMove(name, x, y, smooth) -- Object movement, returns true if the obj
     if battlemat[px] ~= nil or battlemat[px][py] ~= nil then -- Checks to make sure tile isn't already occupied/missing a zone
       if battlemat[px][py]["obj"] == nil then -- But it wasn't
         if battlemat[ox][oy]["obj"].getName() == "Blue" or battlemat[ox][oy]["obj"].getName() == "Red" then
-          if name == "Blue" and py < 4 then
+          if name == "Blue" and py < blue_area then
             return moved
           end
-          if name == "Red" and py > 3 then
+          if name == "Red" and py > red_area then
             return moved
           end
         end -- Extra line to prevent going of
