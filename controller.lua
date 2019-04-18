@@ -45,6 +45,9 @@ function onChat(message)
       broadcastToAll("Missed!")
     end
   end
+  if message == "b" then
+    aiMettaur()
+  end
 end
 
 function onScriptingButtonDown(index, player_color)
@@ -281,10 +284,20 @@ function reverser(attacker, rd, bd)
   end
 end
 
+function typecheck(attack, type)
+  for i, b in Battlecards[attack]["Types"] do
+    if b == type then
+      return true
+    end
+  end
+  return false
+end
+
 ---------------------------
-------------------- ATTACKS
+---------- ATTACK DETECTION
 ---------------------------
 -- Attacks return true if they hit
+-- Just used for detecting if it's a hit, not actual damage.
 
 -- ------
 -- >*****
@@ -309,3 +322,88 @@ function grenadeAttack(attacker)
   local hit = objHit("circle", "filled", x, blast_zone, 1, nil, nil, defender)
   return hit
 end
+
+---------------------------
+---------------- AI SCRIPTS
+---------------------------
+-- AI chooses either a random move or action every tick until asked to stop. (defined by the difficulty of said AI.
+-- AI can only move 1 space per tick - if they don't, special action is required.
+-- Since this library is flexible, AI can use any attack the player can, and vice versa.
+
+-- boolean: allow_directional controls whether the AI can move in any direction if the move fails. Returns true if it did ultimately move.
+-- 1x movement for all regular movements.
+function xmovement(name, allow_directional) -- 1x in x 
+  y = math.random(0, 1)
+  if y == 0 then y = -1 end
+  local moved = objMove(name, y, 0, true)
+  if moved == false then
+    if y == -1 then
+      y = 1
+    else
+      y = -1
+    end
+    local moved2 = objMove(name, y, 0, true)
+    if moved2 == false then
+      if allow_directional == true then
+        ymovement(name)
+      end
+      return true -- Moved a different direction
+    end
+  end
+  return false
+end
+
+function ymovement(name, allow_directional) -- 1x in y
+  y = math.random(0, 1)
+  if y == 0 then y = -1 end
+  local moved = objMove(name, 0, y, true)
+  if moved == false then
+    if y == -1 then
+      y = 1
+    else
+      y = -1
+    end
+    local moved2 = objMove(name, 0, y, true)
+    if moved2 == false then
+      if allow_directional == true then
+        xmovement(name)
+        return false --
+      end
+      return true -- Couldn't move.
+    end
+  end
+  return false
+end
+
+
+---------------------------
+---------------- AI LIBRARY
+---------------------------
+function aiMettaur(stop) -- Only moves up and down
+  local function move()
+    local moved = xmovement("Blue", false) -- Mettaur isn't smart enough to move back or forth.
+    if moved == true then
+      -- Reverse to AC2
+    end
+  end
+
+  if stop == true then return nil end
+  local ac = math.random(0, 2) -- We can adjust odds just by changing this number
+  if ac > 0 then -- Move
+    move()
+    Wait.time(|| aiMettaur(false), 1)
+  end
+
+  if ac == 0 then -- Attack
+    Wait.time(|| aiMettaur(false), 1)
+  end
+end
+
+---------------------------
+------------------ CARDS DB
+---------------------------
+
+Battlecards = {
+  ['HiCannon'] = {DMG = 40, CHUNK = 3, MB = 8, ELEMENT = "NULL", DESC = "Cannon attacks one enemy", FUNC = "basic_attack", ['Types'] = {"*", "a", "b", "c"}},
+  ['MiniBomb'] = {DMG = 50, CHUNK = 3, MB = 5, ELEMENT = "NULL", DESC = "Throws a MiniBomb 3sq ahead", FUNC = "basic_attack", ['Types'] = {"*", "b", "g", "l"}}
+}
