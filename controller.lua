@@ -171,18 +171,26 @@ function debug_spawn()
   red_spawn = battlemat[red_spawn_y][red_spawn_x]["zone"].getPosition()
   blue_spawn = battlemat[blue_spawn_y][blue_spawn_x]["zone"].getPosition()
 
+  blue_spawn["y"] = blue_spawn["y"] - 1.05
+  blue_spawn["z"] = blue_spawn["z"] + 0.63
+  local params = {
+    assetbundle = "http://cloud-3.steamusercontent.com/ugc/832512818124978502/D674868683DA55A701EEA79EEFF8B585AB765902/"
+  }
+
   spawnObject({type = "Chess_Pawn", position = red_spawn, callback_function = function(obj) spawn_callback(obj, "Red") end})
-  spawnObject({type = "Chess_Pawn", position = blue_spawn, callback_function = function(obj) spawn_callback(obj, "Blue") end})
+  spawnObject({type = "Custom_Assetbundle", position = blue_spawn, callback_function = function(obj) spawn_callback(obj, "Blue") end}).setCustomObject(params)
 
   function spawn_callback(object_spawned, color)
     if color == "Red" then
       object_spawned.setName("Red")
       battlemat[red_spawn_y][red_spawn_x]["obj"] = object_spawned
     else
+      object_spawned.setScale({5.05, 5.05, 5.05})
+      object_spawned.setRotation({0.00, 0.03, 0.18})
       object_spawned.setName("Blue")
       battlemat[blue_spawn_y][blue_spawn_x]["obj"] = object_spawned
     end
-    object_spawned.interactable = false -- Since these objects are not interactable we can use their name variable to store playername.
+   object_spawned.interactable = false -- Since these objects are not interactable we can use their name variable to store playername.
     object_spawned.setLock(true)
   end
 end
@@ -199,7 +207,7 @@ function findObj(obj) -- Finds an object with the given name.
 end
 
 -- Moves an object
-function objMove(name, x, y, smooth) -- Object movement, returns true if the object successfully moved and the objects new position
+function objMove(name, x, y, smooth, mx, my, mz) -- Object movement, returns true if the object successfully moved and the objects new position
   local ox, oy = findObj(name) -- finds the object's position
   local px = ox + x
   local py = oy + y
@@ -219,7 +227,14 @@ function objMove(name, x, y, smooth) -- Object movement, returns true if the obj
         end -- Extra line to prevent going of
         battlemat[ox][oy]["obj"] = nil -- Remove old obj
         battlemat[px][py]["obj"] = obj -- Add new instance
-        local new_pos = battlemat[px][py]["zone"].getPosition() -- Set new pos
+
+        local new_pos = battlemat[px][py]["zone"].getPosition()
+        if mx ~= nil and my ~= nil and mz ~= nil then
+          new_pos["x"] = new_pos["x"] + mx
+          new_pos["y"] = new_pos["y"] + my
+          new_pos["z"] = new_pos["z"] + mz
+        end
+
         if smooth == true then
           obj.setPositionSmooth(new_pos, false, true)
         else
@@ -294,10 +309,11 @@ function typecheck(attack, type)
 end
 
 ---------------------------
----------- ATTACK DETECTION
+------------------- ATTACKS
 ---------------------------
 -- Attacks return true if they hit
--- Just used for detecting if it's a hit, not actual damage.
+-- > = player, ~ projectile (delayed), * = hit zone, # = delayed hit zone
+-- No > = same from anywhere
 
 -- ------
 -- >*****
@@ -323,26 +339,89 @@ function grenadeAttack(attacker)
   return hit
 end
 
+-- ------
+-- >#####
+-- ------
+function mettarAttack(attacker)
+  local spawn = true
+  local flash = nil
+  local activate = false
+
+  local function returntopos()
+    flash.destruct()
+    return nil
+  end
+
+  local function setpos(position, y, mx, my)
+    position["y"] = position["y"] - 1
+
+    if activate == true then
+      returntopos()
+      return nil
+    end
+
+    if spawn == true then
+      local function spawn_callback_flash(obj)
+        flash = obj
+        flash.setColorTint({r=1, g=1, b=0})
+        flash.interactable = false
+        flash.setLock(true)
+        spawn = false
+      end
+      spawnObject({type = "BlockSquare", position = position, scale = {2.59, 0.04, 1.33}, sound = false, callback_function = function(obj) spawn_callback_flash(obj) end})
+    end
+
+    if battlemat[mx][my]["obj"] ~= nil then
+      activate = true
+      print("Hit something!!!!!!")
+    end
+
+    if spawn == false then
+      flash.setPosition(position)
+      if y == 1 then
+        Wait.time(|| returntopos(), 0.3)
+      end
+    end
+  end
+
+  local x, y = findObj(attacker)
+  local i = 0
+  for x, y, v in battlemat:line(rigid, x, y - 1, x, 1) do
+    i = i + 1
+    local cell_pos = battlemat[x][y]["zone"].getPosition()
+    local cell_pos = battlemat[x][y]["zone"].getPosition()
+    Wait.time(|| setpos(cell_pos, y, x, y), i * 0.5)
+  end
+end
+
 ---------------------------
----------------- AI SCRIPTS
+------------------- CARDS
+---------------------------
+
+Battlecards = {
+  ['HiCannon'] = {DMG = 40, CHUNK = 3, MB = 8, ELEMENT = "NULL", DESC = "Cannon attacks one enemy", FUNC = "basic_attack", ['Types'] = {"*", "a", "b", "c"}},
+  ['MiniBomb'] = {DMG = 50, CHUNK = 3, MB = 5, ELEMENT = "NULL", DESC = "Throws a MiniBomb 3sq ahead", FUNC = "basic_attack", ['Types'] = {"*", "b", "g", "l"}}
+}
+
+---------------------------
+------------------- AI
 ---------------------------
 -- AI chooses either a random move or action every tick until asked to stop. (defined by the difficulty of said AI.
 -- AI can only move 1 space per tick - if they don't, special action is required.
--- Since this library is flexible, AI can use any attack the player can, and vice versa.
 
 -- boolean: allow_directional controls whether the AI can move in any direction if the move fails. Returns true if it did ultimately move.
 -- 1x movement for all regular movements.
-function xmovement(name, allow_directional) -- 1x in x 
+function xmovement(name, allow_directional)
   y = math.random(0, 1)
   if y == 0 then y = -1 end
-  local moved = objMove(name, y, 0, true)
+  local moved = objMove(name, y, 0, true, 0, - 1.05, 0.63)
   if moved == false then
     if y == -1 then
       y = 1
     else
       y = -1
     end
-    local moved2 = objMove(name, y, 0, true)
+    local moved2 = objMove(name, y, 0, true, 0, - 1.05, 0.63)
     if moved2 == false then
       if allow_directional == true then
         ymovement(name)
@@ -353,57 +432,75 @@ function xmovement(name, allow_directional) -- 1x in x
   return false
 end
 
-function ymovement(name, allow_directional) -- 1x in y
+function ymovement(name, allow_directional)
   y = math.random(0, 1)
   if y == 0 then y = -1 end
-  local moved = objMove(name, 0, y, true)
+  local moved = objMove(name, 0, y, true, 0, - 1.05, 0.63)
   if moved == false then
     if y == -1 then
       y = 1
     else
       y = -1
     end
-    local moved2 = objMove(name, 0, y, true)
+    local moved2 = objMove(name, 0, y, true, 0, - 1.05, 0.63)
     if moved2 == false then
       if allow_directional == true then
         xmovement(name)
         return false --
       end
-      return true -- Couldn't move.
+      return true -- Couldn't move
     end
   end
   return false
 end
 
+function xtracker(name, target) -- Tracks an object and returns the X coordinate to move
+  local x, y = findObj(target)
+  local xb, yb = findObj(name)
+  local m = 0
+  if xb == 1 and x >= 2 then m = 1 end
+  if xb == 2 and x == 3 then m = 1 end
+  if xb == 2 and x == 1 then m = -1 end
+  if xb == 3 and x <= 2 then m = -1 end
+  return m
+end
 
----------------------------
----------------- AI LIBRARY
----------------------------
 function aiMettaur(stop) -- Only moves up and down
   local function move()
-    local moved = xmovement("Blue", false) -- Mettaur isn't smart enough to move back or forth.
+    local moved = xmovement("Blue", true)
     if moved == true then
-      -- Reverse to AC2
+      attack() -- Attack if can't do anything else
+      return nil
+    end
+  end
+
+  local function movetoplayer()
+    local m = xtracker("Blue", "Red")
+    objMove("Blue", m, 0, true, 0, - 1.05, 0.63)
+    Wait.time(|| aiMettaur(false), 2)
+  end
+
+  local function attack()
+    local xb = findObj("Red")
+    local x, y = findObj("Blue")
+    if xb == x then
+      battlemat[x][y]["obj"].AssetBundle.playTriggerEffect(0)
+      mettarAttack("Blue")
+      Wait.time(|| aiMettaur(false), 3)
+    else
+      movetoplayer()
     end
   end
 
   if stop == true then return nil end
-  local ac = math.random(0, 2) -- We can adjust odds just by changing this number
-  if ac > 0 then -- Move
+  ac = math.random(0, 3)
+
+  if ac == 0 then -- Random move
     move()
-    Wait.time(|| aiMettaur(false), 1)
+    Wait.time(|| aiMettaur(false), 3)
   end
 
-  if ac == 0 then -- Attack
-    Wait.time(|| aiMettaur(false), 1)
+  if ac > 0 then -- Move towards player
+    attack()
   end
 end
-
----------------------------
------------------- CARDS DB
----------------------------
-
-Battlecards = {
-  ['HiCannon'] = {DMG = 40, CHUNK = 3, MB = 8, ELEMENT = "NULL", DESC = "Cannon attacks one enemy", FUNC = "basic_attack", ['Types'] = {"*", "a", "b", "c"}},
-  ['MiniBomb'] = {DMG = 50, CHUNK = 3, MB = 5, ELEMENT = "NULL", DESC = "Throws a MiniBomb 3sq ahead", FUNC = "basic_attack", ['Types'] = {"*", "b", "g", "l"}}
-}
