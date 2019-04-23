@@ -24,7 +24,6 @@ function button_animation()
       if framebut == 3 then framebut = 1 end
     UI.setAttribute("frame2","image", "select" .. tostring(framebut))
     UI.setAttribute("frame3","image", "select" .. tostring(framebut))
-    print ("b" .. tostring(framebut))
   Wait.time(button_animation, 0.75)
 end
 
