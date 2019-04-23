@@ -1,0 +1,14 @@
+<!-- Xml UI. See documentation: https://api.tabletopsimulator.com/ui/introUI/ -->
+<panel id="splashscreen" hideAnimation="FadeOut" animationDuration="1">
+  <!-- Background -->
+  <image id="frame" image="1"></image>
+  <!-- Logo and start buttons -->
+  <panel>
+    <image id="logo" image="logo" preserveAspect="true" flexibleWidth="1" flexibleHeight="1" width="50%" height="50%"></image>
+      <panel width = "15%" height="15%" offsetXY="0 -235">
+        <image image="start" preserveAspect="true"></image>
+        <button color="clear" onClick="startgame"></button>
+        <image id="frame2" image="b1" preserveAspect="true"></image>
+      </panel>
+  </panel>
+</panel>
