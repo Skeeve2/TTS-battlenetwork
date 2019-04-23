@@ -5,3 +5,6 @@ PSD files are sliced spritesheets to be used for asset-bundles. The advantages o
 
 ## PNG Files
 Used for certain animations or where necessary, such as GUI elements.
+
+## unity3d files
+Assetbundles to link to from ingame
