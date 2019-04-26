@@ -1,8 +1,4 @@
 #include Grid
-
-
--- RED is on the left, BLUE is on the right.
-
 ---------------------------
 ------ CONFIGURATION / INIT
 ---------------------------
@@ -13,6 +9,8 @@ red_spawn_x = 2 -- Where the players spawn
 red_spawn_y = 2
 blue_spawn_x = 5
 blue_spawn_y = 2
+
+center = 3
 
 blue_area = 4 -- Controls how far players can move - should not overlap (but can!) Used for area-grabbing.
 red_area = 3
@@ -113,10 +111,6 @@ function onScriptingButtonDown(index, player_color)
   end
 end
 
-function spawn()
-  battlemat:spawn(grid_width, grid_height, 2.3, 0.1, 0.7, 2.6, 1.5, 0.5, battlemat_obj_pos)
-end
-
 function up(color)
   if color == "Blue" then
     local moved, x, y = objMove("Blue", 1, 0, true)
@@ -165,18 +159,82 @@ end
 ---------------------------
 ------------------- SCRIPTS
 ---------------------------
--- Utilities for attacks and misc.
+function spawn() -- Spawns the basic battlemat. T0DO: make it so you can spawn other types of fields
+  local function tilespawning()
+    for x, y, v in battlemat:iterate() do
+      battlemat[x][y]["tile"] = {}
+      battlemat[x][y]["tile"]["status"] = nil
+      local pos = battlemat[x][y]["zone"].getPosition()
+      pos["y"] = pos["y"] - 1.2 -- Sprites are at Y1.
+      --------------
+      --------- BLUE
+      --------------
+      if x == 1 and y <= center then -- 1
+        pos["z"] = pos["z"] + 0.03
+        spawn_tile("https://github.com/Skeeve2/TTS-battlenetwork/blob/master/assets/tiles/1b.unity3d?raw=true", pos)
+        pos["z"] = pos["z"] - 0.75
+        spawn_tile("https://github.com/Skeeve2/TTS-battlenetwork/blob/master/assets/tiles/bb.unity3d?raw=true", pos)
+        battlemat[x][y]["tile"]["color"] = "Blue"
+      end
+
+      if x ~= grid_height and x ~= 1 and y <= center then -- center
+        spawn_tile("https://github.com/Skeeve2/TTS-battlenetwork/blob/master/assets/tiles/2b.unity3d?raw=true", pos)
+        battlemat[x][y]["tile"]["color"] = "Blue"
+      end
+
+      if x == grid_height and x ~= 1 and y <= center then -- top
+        spawn_tile("https://github.com/Skeeve2/TTS-battlenetwork/blob/master/assets/tiles/3b.unity3d?raw=true", pos)
+        battlemat[x][y]["tile"]["color"] = "Blue"
+      end
+
+      --------------
+      --------- RED
+      --------------
+      if x == 1 and y > center then -- Red first layer
+        pos["z"] = pos["z"] + 0.03
+        spawn_tile("https://github.com/Skeeve2/TTS-battlenetwork/blob/master/assets/tiles/1r.unity3d?raw=true", pos)
+        pos["z"] = pos["z"] - 0.75
+        spawn_tile("https://github.com/Skeeve2/TTS-battlenetwork/blob/master/assets/tiles/rb.unity3d?raw=true", pos)
+        battlemat[x][y]["tile"]["color"] = "Red"
+      end
+
+      if x ~= grid_height and x ~= 1 and y > center then -- center
+        spawn_tile("https://github.com/Skeeve2/TTS-battlenetwork/blob/master/assets/tiles/2r.unity3d?raw=true", pos)
+        battlemat[x][y]["tile"]["color"] = "Red"
+      end
+
+      if x == grid_height and x ~= 1 and y > center then -- top
+        spawn_tile("https://github.com/Skeeve2/TTS-battlenetwork/blob/master/assets/tiles/3r.unity3d?raw=true", pos)
+        battlemat[x][y]["tile"]["color"] = "Red"
+      end
+
+    end
+  end
+  battlemat:spawn(grid_width, grid_height, 2.3, 0.1, 0.7, 2.4, 1.5, 0.5, battlemat_obj_pos)
+  Wait.time(|| tilespawning(), 0.1) -- Let the battlemat spawn first
+end
+
+function spawn_tile(bundle, position)
+  local function operations(obj)
+    obj.interactable = false
+    obj.setLock(true)
+  end
+  local params = {
+    assetbundle = bundle,
+    type = board
+  }
+  spawnObject({type = "Custom_Assetbundle", position = position, scale = {6.15, 6.15, 6.15}, sound = false, callback_function = function(obj) operations(obj) end}).setCustomObject(params)
+end
 
 function debug_spawn()
   red_spawn = battlemat[red_spawn_y][red_spawn_x]["zone"].getPosition()
   blue_spawn = battlemat[blue_spawn_y][blue_spawn_x]["zone"].getPosition()
 
   blue_spawn["y"] = blue_spawn["y"] - 1.05
-  blue_spawn["z"] = blue_spawn["z"] + 0.63
+  blue_spawn["z"] = blue_spawn["z"] + 1
   local params = {
     assetbundle = "http://cloud-3.steamusercontent.com/ugc/832512818124978502/D674868683DA55A701EEA79EEFF8B585AB765902/"
   }
-
   spawnObject({type = "Chess_Pawn", position = red_spawn, callback_function = function(obj) spawn_callback(obj, "Red") end})
   spawnObject({type = "Custom_Assetbundle", position = blue_spawn, callback_function = function(obj) spawn_callback(obj, "Blue") end}).setCustomObject(params)
 
@@ -190,9 +248,10 @@ function debug_spawn()
       object_spawned.setName("Blue")
       battlemat[blue_spawn_y][blue_spawn_x]["obj"] = object_spawned
     end
-   object_spawned.interactable = false -- Since these objects are not interactable we can use their name variable to store playername.
+    object_spawned.interactable = false -- Since these objects are not interactable we can use their name variable to store playername.
     object_spawned.setLock(true)
   end
+  Global.call("battlestartanim")
 end
 
 -- Returns position in x, y coords
@@ -218,10 +277,10 @@ function objMove(name, x, y, smooth, mx, my, mz) -- Object movement, returns tru
     if battlemat[px] ~= nil or battlemat[px][py] ~= nil then -- Checks to make sure tile isn't already occupied/missing a zone
       if battlemat[px][py]["obj"] == nil then -- But it wasn't
         if battlemat[ox][oy]["obj"].getName() == "Blue" or battlemat[ox][oy]["obj"].getName() == "Red" then
-          if name == "Blue" and py < blue_area then
+          if name == "Blue" and py <= center then
             return moved
           end
-          if name == "Red" and py > red_area then
+          if name == "Red" and py > center then
             return moved
           end
         end -- Extra line to prevent going of
@@ -349,7 +408,6 @@ function mettarAttack(attacker)
 
   local function returntopos()
     flash.destruct()
-    return nil
   end
 
   local function setpos(position, y, mx, my)
@@ -363,7 +421,7 @@ function mettarAttack(attacker)
     if spawn == true then
       local function spawn_callback_flash(obj)
         flash = obj
-        flash.setColorTint({r=1, g=1, b=0})
+        flash.setColorTint({r = 1, g = 1, b = 0})
         flash.interactable = false
         flash.setLock(true)
         spawn = false
@@ -435,14 +493,14 @@ end
 function ymovement(name, allow_directional)
   y = math.random(0, 1)
   if y == 0 then y = -1 end
-  local moved = objMove(name, 0, y, true, 0, - 1.05, 0.63)
+  local moved = objMove(name, 0, y, true, 0, - 1.05, 1)
   if moved == false then
     if y == -1 then
       y = 1
     else
       y = -1
     end
-    local moved2 = objMove(name, 0, y, true, 0, - 1.05, 0.63)
+    local moved2 = objMove(name, 0, y, true, 0, - 1.05, 1)
     if moved2 == false then
       if allow_directional == true then
         xmovement(name)
@@ -465,6 +523,8 @@ function xtracker(name, target) -- Tracks an object and returns the X coordinate
   return m
 end
 
+-- AI FUNCTIONS
+
 function aiMettaur(stop) -- Only moves up and down
   local function move()
     local moved = xmovement("Blue", true)
@@ -476,7 +536,7 @@ function aiMettaur(stop) -- Only moves up and down
 
   local function movetoplayer()
     local m = xtracker("Blue", "Red")
-    objMove("Blue", m, 0, true, 0, - 1.05, 0.63)
+    objMove("Blue", m, 0, true, 0, - 1.05, 1)
     Wait.time(|| aiMettaur(false), 2)
   end
 
@@ -486,7 +546,7 @@ function aiMettaur(stop) -- Only moves up and down
     if xb == x then
       battlemat[x][y]["obj"].AssetBundle.playTriggerEffect(0)
       mettarAttack("Blue")
-      Wait.time(|| aiMettaur(false), 3)
+      Wait.time(|| aiMettaur(false), 2)
     else
       movetoplayer()
     end
@@ -497,7 +557,7 @@ function aiMettaur(stop) -- Only moves up and down
 
   if ac == 0 then -- Random move
     move()
-    Wait.time(|| aiMettaur(false), 3)
+    Wait.time(|| aiMettaur(false), 2)
   end
 
   if ac > 0 then -- Move towards player
